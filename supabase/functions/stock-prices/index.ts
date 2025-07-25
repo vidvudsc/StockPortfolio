@@ -43,8 +43,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const symbols = url.searchParams.get('symbols')?.split(',') || [];
+    // Read symbols from request body
+    const body = await req.json();
+    const symbols = body.symbols ? body.symbols.split(',') : [];
     
     if (symbols.length === 0) {
       return new Response(
