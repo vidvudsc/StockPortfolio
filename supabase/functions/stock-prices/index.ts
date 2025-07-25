@@ -44,8 +44,10 @@ Deno.serve(async (req) => {
 
   try {
     // Read symbols from request body
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const symbols = body.symbols ? body.symbols.split(',') : [];
+    
+    console.log('Received symbols:', symbols);
     
     if (symbols.length === 0) {
       return new Response(
