@@ -2,19 +2,20 @@ import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Header from '@/components/Header';
 import PortfolioCard from '@/components/PortfolioCard';
-import { tradesData } from '@/data/trades';
+import { useTrades } from '@/hooks/useTrades';
 import { useStockPrices } from '@/hooks/useStockPrices';
 import { Portfolio, PortfolioSummary } from '@/types/portfolio';
 import { TrendingUp, DollarSign, Users, Activity } from 'lucide-react';
 
 const Overview = () => {
+  const { trades } = useTrades();
   const { getPrice } = useStockPrices();
 
   const portfolioData = useMemo((): PortfolioSummary => {
     const portfolioMap = new Map<string, Portfolio>();
 
     // Group trades by buyer
-    tradesData.forEach(trade => {
+    trades.forEach(trade => {
       if (!portfolioMap.has(trade.buyer)) {
         portfolioMap.set(trade.buyer, {
           owner: trade.buyer,
@@ -61,7 +62,7 @@ const Overview = () => {
       totalGainLossPercent,
       portfolios: portfolios.sort((a, b) => b.totalValue - a.totalValue),
     };
-  }, [getPrice]);
+  }, [getPrice, trades]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,7 +116,7 @@ const Overview = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{tradesData.length}</div>
+              <div className="text-2xl font-bold">{trades.length}</div>
             </CardContent>
           </Card>
         </div>

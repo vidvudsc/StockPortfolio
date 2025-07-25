@@ -2,20 +2,25 @@ import { useParams } from 'react-router-dom';
 import { useMemo } from 'react';
 import Header from '@/components/Header';
 import TradesList from '@/components/TradesList';
+import AddTradeModal from '@/components/AddTradeModal';
+import PortfolioAllocationChart from '@/components/charts/PortfolioAllocationChart';
+import GainLossChart from '@/components/charts/GainLossChart';
+import HoldingsPerformanceChart from '@/components/charts/HoldingsPerformanceChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { tradesData } from '@/data/trades';
+import { useTrades } from '@/hooks/useTrades';
 import { useStockPrices } from '@/hooks/useStockPrices';
 import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart } from 'lucide-react';
 
 const Portfolio = () => {
   const { owner } = useParams<{ owner: string }>();
+  const { trades, addTrade } = useTrades();
   const { getPrice } = useStockPrices();
   
   const ownerName = owner?.charAt(0).toUpperCase() + owner?.slice(1) || '';
   
   const portfolioData = useMemo(() => {
-    const userTrades = tradesData.filter(trade => 
+    const userTrades = trades.filter(trade => 
       trade.buyer.toLowerCase() === owner?.toLowerCase()
     );
 
@@ -67,7 +72,50 @@ const Portfolio = () => {
       gainLossPercent,
       holdings: Array.from(holdings.values()).sort((a, b) => b.currentValue - a.currentValue),
     };
-  }, [owner, getPrice]);
+  }, [owner, getPrice, trades]);
+
+  // Prepare chart data
+  const chartData = useMemo(() => {
+    if (portfolioData.trades.length === 0) return { allocation: [], gainLoss: [], performance: [] };
+
+    // Portfolio allocation data
+    const allocation = portfolioData.holdings.map(holding => ({
+      name: holding.symbol,
+      value: holding.currentValue,
+      color: '', // Will be assigned in component
+    }));
+
+    // Gain/Loss over time (simplified - using trade dates)
+    const sortedTrades = [...portfolioData.trades].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let cumulativeInvested = 0;
+    let cumulativeValue = 0;
+    
+    const gainLoss = sortedTrades.map(trade => {
+      cumulativeInvested += trade.trueTotal;
+      const currentPrice = getPrice(trade.symbol);
+      if (currentPrice) {
+        cumulativeValue = portfolioData.holdings.reduce((sum, holding) => sum + holding.currentValue, 0);
+      } else {
+        cumulativeValue = cumulativeInvested;
+      }
+      
+      return {
+        date: trade.date,
+        value: cumulativeValue,
+        invested: cumulativeInvested,
+        gainLoss: cumulativeValue - cumulativeInvested,
+      };
+    });
+
+    // Performance data
+    const performance = portfolioData.holdings.map(holding => ({
+      symbol: holding.symbol,
+      gainLossPercent: holding.gainLossPercent,
+      currentValue: holding.currentValue,
+    }));
+
+    return { allocation, gainLoss, performance };
+  }, [portfolioData, getPrice]);
 
   if (!owner || portfolioData.trades.length === 0) {
     return (
@@ -89,9 +137,12 @@ const Portfolio = () => {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">{ownerName}'s Portfolio</h1>
-          <p className="text-muted-foreground">Detailed portfolio analysis and performance metrics</p>
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">{ownerName}'s Portfolio</h1>
+            <p className="text-muted-foreground">Detailed portfolio analysis and performance metrics</p>
+          </div>
+          <AddTradeModal onAddTrade={(trade) => addTrade({ ...trade, buyer: ownerName })} />
         </div>
 
         {/* Portfolio Summary */}
@@ -140,6 +191,16 @@ const Portfolio = () => {
               <div className="text-2xl font-bold">{portfolioData.holdings.length}</div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <PortfolioAllocationChart data={chartData.allocation} />
+          <HoldingsPerformanceChart data={chartData.performance} />
+        </div>
+        
+        <div className="mb-8">
+          <GainLossChart data={chartData.gainLoss} />
         </div>
 
         {/* Holdings Breakdown */}
