@@ -79,19 +79,27 @@ Deno.serve(async (req) => {
       
       if (exchangeResponse.ok) {
         const exchangeData: ExchangeRateResponse = await exchangeResponse.json();
-        const rate = parseFloat(exchangeData['Realtime Currency Exchange Rate']['5. Exchange Rate']);
-        if (!isNaN(rate)) {
-          usdToEurRate = rate;
-          
-          // Update exchange rate in database
-          await supabase
-            .from('exchange_rates')
-            .upsert({
-              from_currency: 'USD',
-              to_currency: 'EUR',
-              rate: usdToEurRate,
-              last_updated: new Date().toISOString()
-            });
+        
+        // Check if the response has the expected structure
+        if (exchangeData['Realtime Currency Exchange Rate'] && 
+            exchangeData['Realtime Currency Exchange Rate']['5. Exchange Rate']) {
+          const rate = parseFloat(exchangeData['Realtime Currency Exchange Rate']['5. Exchange Rate']);
+          if (!isNaN(rate)) {
+            usdToEurRate = rate;
+            console.log('Updated USD/EUR rate:', usdToEurRate);
+            
+            // Update exchange rate in database
+            await supabase
+              .from('exchange_rates')
+              .upsert({
+                from_currency: 'USD',
+                to_currency: 'EUR',
+                rate: usdToEurRate,
+                last_updated: new Date().toISOString()
+              });
+          }
+        } else {
+          console.log('Invalid exchange rate response structure:', exchangeData);
         }
       }
     } catch (error) {
