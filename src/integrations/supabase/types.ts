@@ -14,7 +14,105 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      exchange_rates: {
+        Row: {
+          from_currency: string
+          id: number
+          last_updated: string
+          rate: number
+          to_currency: string
+        }
+        Insert: {
+          from_currency: string
+          id?: number
+          last_updated?: string
+          rate: number
+          to_currency: string
+        }
+        Update: {
+          from_currency?: string
+          id?: number
+          last_updated?: string
+          rate?: number
+          to_currency?: string
+        }
+        Relationships: []
+      }
+      stock_prices: {
+        Row: {
+          change_amount: number | null
+          change_percent: number | null
+          id: number
+          last_updated: string
+          price_eur: number
+          price_usd: number
+          symbol: string
+        }
+        Insert: {
+          change_amount?: number | null
+          change_percent?: number | null
+          id?: number
+          last_updated?: string
+          price_eur: number
+          price_usd: number
+          symbol: string
+        }
+        Update: {
+          change_amount?: number | null
+          change_percent?: number | null
+          id?: number
+          last_updated?: string
+          price_eur?: number
+          price_usd?: number
+          symbol?: string
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          action: string
+          asset: string
+          buyer: string
+          created_at: string
+          date: string
+          id: number
+          price: number
+          quantity: number
+          symbol: string
+          total: number
+          true_total: number
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          asset: string
+          buyer: string
+          created_at?: string
+          date: string
+          id?: number
+          price: number
+          quantity: number
+          symbol: string
+          total: number
+          true_total: number
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          asset?: string
+          buyer?: string
+          created_at?: string
+          date?: string
+          id?: number
+          price?: number
+          quantity?: number
+          symbol?: string
+          total?: number
+          true_total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
