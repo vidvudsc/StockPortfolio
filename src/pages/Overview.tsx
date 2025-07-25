@@ -1,15 +1,23 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Header from '@/components/Header';
 import PortfolioCard from '@/components/PortfolioCard';
-import { useTrades } from '@/hooks/useTrades';
-import { useStockPrices } from '@/hooks/useStockPrices';
+import { useSupabaseTrades } from '@/hooks/useSupabaseTrades';
+import { useSupabaseStockPrices } from '@/hooks/useSupabaseStockPrices';
 import { Portfolio, PortfolioSummary } from '@/types/portfolio';
 import { TrendingUp, DollarSign, Users, Activity } from 'lucide-react';
 
 const Overview = () => {
-  const { trades } = useTrades();
-  const { getPrice } = useStockPrices();
+  const { trades, loading: tradesLoading } = useSupabaseTrades();
+  const { getPrice, fetchStockPrices } = useSupabaseStockPrices();
+
+  // Fetch stock prices for all unique symbols
+  useEffect(() => {
+    if (trades.length > 0) {
+      const symbols = [...new Set(trades.map(trade => trade.symbol))];
+      fetchStockPrices(symbols);
+    }
+  }, [trades, fetchStockPrices]);
 
   const portfolioData = useMemo((): PortfolioSummary => {
     const portfolioMap = new Map<string, Portfolio>();

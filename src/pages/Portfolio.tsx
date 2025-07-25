@@ -1,5 +1,5 @@
 import { useParams } from 'react-router-dom';
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import Header from '@/components/Header';
 import TradesList from '@/components/TradesList';
 import AddTradeModal from '@/components/AddTradeModal';
@@ -8,15 +8,28 @@ import GainLossChart from '@/components/charts/GainLossChart';
 import HoldingsPerformanceChart from '@/components/charts/HoldingsPerformanceChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useTrades } from '@/hooks/useTrades';
-import { useStockPrices } from '@/hooks/useStockPrices';
+import { useSupabaseTrades } from '@/hooks/useSupabaseTrades';
+import { useSupabaseStockPrices } from '@/hooks/useSupabaseStockPrices';
 import { TrendingUp, TrendingDown, DollarSign, Activity, PieChart } from 'lucide-react';
 
 const Portfolio = () => {
   const { owner } = useParams<{ owner: string }>();
-  const { trades, addTrade } = useTrades();
-  const { getPrice } = useStockPrices();
+  const { trades, addTrade, loading: tradesLoading } = useSupabaseTrades();
+  const { getPrice, fetchStockPrices } = useSupabaseStockPrices();
   
+  // Get trades for this owner
+  const ownerTrades = trades.filter(trade => 
+    trade.buyer.toLowerCase() === owner?.toLowerCase()
+  );
+
+  // Fetch stock prices for this portfolio's symbols
+  useEffect(() => {
+    if (ownerTrades.length > 0) {
+      const symbols = [...new Set(ownerTrades.map(trade => trade.symbol))];
+      fetchStockPrices(symbols);
+    }
+  }, [ownerTrades, fetchStockPrices]);
+
   const ownerName = owner?.charAt(0).toUpperCase() + owner?.slice(1) || '';
   
   const portfolioData = useMemo(() => {
