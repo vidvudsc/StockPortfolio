@@ -5,29 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface FMPQuote {
+interface YahooFinanceQuote {
+  regularMarketPrice: number;
+  regularMarketChange: number;
+  regularMarketChangePercent: number;
   symbol: string;
-  name: string;
-  price: number;
-  changesPercentage: number;
-  change: number;
-  dayLow: number;
-  dayHigh: number;
-  yearHigh: number;
-  yearLow: number;
-  marketCap: number;
-  priceAvg50: number;
-  priceAvg200: number;
-  exchange: string;
-  volume: number;
-  avgVolume: number;
-  open: number;
-  previousClose: number;
-  eps: number;
-  pe: number;
-  earningsAnnouncement: string;
-  sharesOutstanding: number;
-  timestamp: number;
 }
 
 interface ExchangeRateResponse {
@@ -124,33 +106,42 @@ Deno.serve(async (req) => {
     // Add cached results to final results
     results.push(...cachedResults);
 
-    // Fetch fresh data for uncached symbols using FMP batch API
+    // Fetch fresh data for uncached symbols using Yahoo Finance
     if (symbolsToFetch.length > 0) {
       try {
         console.log(`Fetching fresh data for ${symbolsToFetch.length} symbols: ${symbolsToFetch.join(', ')}`);
         
-        // FMP allows batch requests - get all symbols in one call
-        const symbolsString = symbolsToFetch.join(',');
-        const fmpResponse = await fetch(
-          `https://financialmodelingprep.com/api/v3/quote/${symbolsString}`
-        );
+        // Fetch each symbol individually from Yahoo Finance
+        for (const symbol of symbolsToFetch) {
+          try {
+            // Use Yahoo Finance query API (free, no key required)
+            const yahooResponse = await fetch(
+              `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`
+            );
 
-        if (!fmpResponse.ok) {
-          console.error(`FMP API error: ${fmpResponse.status}`);
-        } else {
-          const fmpData: FMPQuote[] = await fmpResponse.json();
-          console.log(`FMP returned data for ${fmpData.length} symbols`);
-
-          // Process each quote from FMP
-          for (const quote of fmpData) {
-            if (!quote || typeof quote.price !== 'number' || isNaN(quote.price)) {
-              console.warn(`Invalid quote data for ${quote?.symbol}`);
+            if (!yahooResponse.ok) {
+              console.error(`Yahoo Finance API error for ${symbol}: ${yahooResponse.status}`);
               continue;
             }
 
-            const priceUSD = quote.price;
-            const changeUSD = quote.change || 0;
-            const changePercent = quote.changesPercentage || 0;
+            const yahooData = await yahooResponse.json();
+            const chartData = yahooData?.chart?.result?.[0];
+            
+            if (!chartData?.meta) {
+              console.warn(`No data returned for ${symbol}`);
+              continue;
+            }
+
+            const meta = chartData.meta;
+            const priceUSD = meta.regularMarketPrice;
+            const previousClose = meta.previousClose || meta.chartPreviousClose;
+            const changeUSD = priceUSD - previousClose;
+            const changePercent = previousClose ? (changeUSD / previousClose) * 100 : 0;
+
+            if (typeof priceUSD !== 'number' || isNaN(priceUSD)) {
+              console.warn(`Invalid price data for ${symbol}`);
+              continue;
+            }
 
             const priceEUR = priceUSD * usdToEurRate;
             const changeEUR = changeUSD * usdToEurRate;
@@ -159,7 +150,7 @@ Deno.serve(async (req) => {
             await supabase
               .from('stock_prices')
               .upsert({
-                symbol: quote.symbol,
+                symbol: symbol,
                 price_usd: priceUSD,
                 price_eur: priceEUR,
                 change_amount: changeEUR,
@@ -168,18 +159,20 @@ Deno.serve(async (req) => {
               });
 
             results.push({
-              symbol: quote.symbol,
+              symbol: symbol,
               price: priceEUR,
               change: changeEUR,
               changePercent: changePercent,
               lastUpdated: new Date().toISOString()
             });
 
-            console.log(`Successfully fetched and cached ${quote.symbol}: €${priceEUR.toFixed(2)}`);
+            console.log(`Successfully fetched and cached ${symbol}: €${priceEUR.toFixed(2)} (${changePercent.toFixed(2)}%)`);
+          } catch (symbolError) {
+            console.error(`Error fetching ${symbol}:`, symbolError);
           }
         }
       } catch (error) {
-        console.error('Error fetching data from FMP:', error);
+        console.error('Error fetching data from Yahoo Finance:', error);
       }
     }
 
