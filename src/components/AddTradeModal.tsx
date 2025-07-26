@@ -24,6 +24,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
     action: 'Buy' as 'Buy' | 'Sell',
     quantity: '',
     price: '',
+    currency: 'EUR' as 'EUR' | 'USD' | 'SEK',
     total: '',
     trueTotal: '',
     buyer: '',
@@ -73,6 +74,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
       action: 'Buy',
       quantity: '',
       price: '',
+      currency: 'EUR',
       total: '',
       trueTotal: '',
       buyer: '',
@@ -165,7 +167,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>
                   <Input
@@ -179,7 +181,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price">Price (€) *</Label>
+                  <Label htmlFor="price">Price *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -190,11 +192,24 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                     required
                   />
                 </div>
+                <div>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select value={formData.currency} onValueChange={(value: 'EUR' | 'USD' | 'SEK') => setFormData(prev => ({ ...prev, currency: value }))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EUR">EUR €</SelectItem>
+                      <SelectItem value="USD">USD $</SelectItem>
+                      <SelectItem value="SEK">SEK kr</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="total">Total (€)</Label>
+                  <Label htmlFor="total">Total ({formData.currency})</Label>
                   <Input
                     id="total"
                     type="number"
@@ -204,11 +219,11 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                     onChange={(e) => setFormData(prev => ({ ...prev, total: e.target.value }))}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Auto-calculated: €{calculateTotal().toFixed(2)}
+                    Auto-calculated: {formData.currency === 'EUR' ? '€' : formData.currency === 'USD' ? '$' : 'kr'}{calculateTotal().toFixed(2)}
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="trueTotal">True Total (€)</Label>
+                  <Label htmlFor="trueTotal">True Total ({formData.currency})</Label>
                   <Input
                     id="trueTotal"
                     type="number"
