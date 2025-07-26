@@ -6,6 +6,7 @@ import AddTradeModal from '@/components/AddTradeModal';
 import PortfolioAllocationChart from '@/components/charts/PortfolioAllocationChart';
 import InvestedVsCurrentChart from '@/components/charts/InvestedVsCurrentChart';
 import HoldingsPerformanceChart from '@/components/charts/HoldingsPerformanceChart';
+import StockHeatMap from '@/components/charts/StockHeatMap';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useSupabaseTrades } from '@/hooks/useSupabaseTrades';
@@ -212,8 +213,14 @@ const Portfolio = () => {
           <InvestedVsCurrentChart data={{ totalInvested: portfolioData.totalInvested, totalValue: portfolioData.totalValue }} />
         </div>
         
-        <div className="mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <HoldingsPerformanceChart data={chartData.performance} />
+          <StockHeatMap data={portfolioData.holdings.map(holding => ({
+            symbol: holding.symbol,
+            asset: holding.asset,
+            gainLossPercent: holding.gainLossPercent,
+            currentValue: holding.currentValue
+          }))} />
         </div>
 
         {/* Holdings Breakdown */}
