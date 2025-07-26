@@ -12,6 +12,77 @@ interface YahooFinanceQuote {
   symbol: string;
 }
 
+// Symbol mapping for European ETFs and corrected tickers
+const SYMBOL_MAPPING: Record<string, string[]> = {
+  'CSPX': ['CSPX.L'], // Core S&P 500 USD (Acc) - London
+  'EQQQ': ['EQQQ.L'], // NASDAQ 100 USD (Acc) - London
+  'MJPY': ['MJPY.L'], // MSCI Core Japan JPY (Acc) - London
+  'NCC': ['NCC-B.ST', 'NCC.ST'], // NCC (B) - Stockholm
+  'AAXN': ['AXON'], // Axon Enterprise - correct US ticker
+};
+
+// Exchange suffixes to try for unrecognized symbols
+const EXCHANGE_SUFFIXES = ['.L', '.PA', '.AS', '.ST', '.MI', '.DE'];
+
+async function findValidSymbol(originalSymbol: string): Promise<string | null> {
+  // First try mapped symbols if available
+  if (SYMBOL_MAPPING[originalSymbol]) {
+    for (const mappedSymbol of SYMBOL_MAPPING[originalSymbol]) {
+      try {
+        const response = await fetch(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${mappedSymbol}?interval=1d&range=1d`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+            console.log(`Found mapped symbol: ${originalSymbol} -> ${mappedSymbol}`);
+            return mappedSymbol;
+          }
+        }
+      } catch (error) {
+        console.log(`Failed to fetch mapped symbol ${mappedSymbol}:`, error);
+      }
+    }
+  }
+
+  // Try original symbol first
+  try {
+    const response = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${originalSymbol}?interval=1d&range=1d`
+    );
+    if (response.ok) {
+      const data = await response.json();
+      if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+        return originalSymbol;
+      }
+    }
+  } catch (error) {
+    console.log(`Failed to fetch original symbol ${originalSymbol}:`, error);
+  }
+
+  // Try with different exchange suffixes
+  for (const suffix of EXCHANGE_SUFFIXES) {
+    const symbolWithSuffix = originalSymbol + suffix;
+    try {
+      const response = await fetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${symbolWithSuffix}?interval=1d&range=1d`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
+          console.log(`Found symbol with suffix: ${originalSymbol} -> ${symbolWithSuffix}`);
+          return symbolWithSuffix;
+        }
+      }
+    } catch (error) {
+      console.log(`Failed to fetch ${symbolWithSuffix}:`, error);
+    }
+  }
+
+  console.warn(`Could not find valid symbol for: ${originalSymbol}`);
+  return null;
+}
+
 interface ExchangeRateResponse {
   rates: {
     EUR: number;
@@ -114,13 +185,21 @@ Deno.serve(async (req) => {
         // Fetch each symbol individually from Yahoo Finance
         for (const symbol of symbolsToFetch) {
           try {
+            // Find the correct symbol format for Yahoo Finance
+            const validSymbol = await findValidSymbol(symbol);
+            
+            if (!validSymbol) {
+              console.warn(`Could not find valid symbol format for ${symbol}`);
+              continue;
+            }
+
             // Use Yahoo Finance query API (free, no key required)
             const yahooResponse = await fetch(
-              `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`
+              `https://query1.finance.yahoo.com/v8/finance/chart/${validSymbol}?interval=1d&range=1d`
             );
 
             if (!yahooResponse.ok) {
-              console.error(`Yahoo Finance API error for ${symbol}: ${yahooResponse.status}`);
+              console.error(`Yahoo Finance API error for ${validSymbol}: ${yahooResponse.status}`);
               continue;
             }
 
@@ -128,7 +207,7 @@ Deno.serve(async (req) => {
             const chartData = yahooData?.chart?.result?.[0];
             
             if (!chartData?.meta) {
-              console.warn(`No data returned for ${symbol}`);
+              console.warn(`No data returned for ${validSymbol}`);
               continue;
             }
 
@@ -139,18 +218,18 @@ Deno.serve(async (req) => {
             const changePercent = previousClose ? (changeUSD / previousClose) * 100 : 0;
 
             if (typeof priceUSD !== 'number' || isNaN(priceUSD)) {
-              console.warn(`Invalid price data for ${symbol}`);
+              console.warn(`Invalid price data for ${validSymbol}`);
               continue;
             }
 
             const priceEUR = priceUSD * usdToEurRate;
             const changeEUR = changeUSD * usdToEurRate;
 
-            // Cache the result
+            // Cache the result using the original symbol as key
             await supabase
               .from('stock_prices')
               .upsert({
-                symbol: symbol,
+                symbol: symbol, // Store with original symbol for consistency
                 price_usd: priceUSD,
                 price_eur: priceEUR,
                 change_amount: changeEUR,
@@ -159,14 +238,14 @@ Deno.serve(async (req) => {
               });
 
             results.push({
-              symbol: symbol,
+              symbol: symbol, // Return with original symbol
               price: priceEUR,
               change: changeEUR,
               changePercent: changePercent,
               lastUpdated: new Date().toISOString()
             });
 
-            console.log(`Successfully fetched and cached ${symbol}: €${priceEUR.toFixed(2)} (${changePercent.toFixed(2)}%)`);
+            console.log(`Successfully fetched and cached ${symbol} (via ${validSymbol}): €${priceEUR.toFixed(2)} (${changePercent.toFixed(2)}%)`);
           } catch (symbolError) {
             console.error(`Error fetching ${symbol}:`, symbolError);
           }
