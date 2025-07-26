@@ -17,8 +17,19 @@ const SYMBOL_MAPPING: Record<string, string[]> = {
   'CSPX': ['CSPX.L'], // Core S&P 500 USD (Acc) - London
   'EQQQ': ['EQQQ.L'], // NASDAQ 100 USD (Acc) - London
   'MJPY': ['MJPY.L'], // MSCI Core Japan JPY (Acc) - London
-  'NCC': ['NCC-B.ST', 'NCC.ST'], // NCC (B) - Stockholm
+  'NCC-B': ['NCC-B.ST'], // NCC (B) - Stockholm (SEK)
   'AAXN': ['AXON'], // Axon Enterprise - correct US ticker
+  'SXR8': ['SXR8.DE'], // Core S&P 500 USD (Acc) - Frankfurt (EUR)
+  'SXRV': ['SXRV.DE'], // NASDAQ 100 USD (Acc) - Frankfurt (EUR)
+};
+
+// Currency mapping for different symbols
+const SYMBOL_CURRENCY: Record<string, string> = {
+  'NCC-B': 'SEK', // Swedish Krona
+  'LCUJ': 'EUR',  // Already in EUR
+  'SXR8': 'EUR',  // Already in EUR
+  'XAD5': 'EUR',  // Already in EUR
+  'SXRV': 'EUR',  // Already in EUR
 };
 
 // Exchange suffixes to try for unrecognized symbols
@@ -114,8 +125,10 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get current USD/EUR exchange rate
+    // Get current USD/EUR and SEK/EUR exchange rates
     let usdToEurRate = 0.92; // Default fallback rate
+    let sekToEurRate = 0.094; // Default fallback rate
+    
     try {
       const exchangeResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
       
@@ -138,7 +151,33 @@ Deno.serve(async (req) => {
         }
       }
     } catch (error) {
-      console.log('Failed to fetch exchange rate, using fallback:', error);
+      console.log('Failed to fetch USD/EUR rate, using fallback:', error);
+    }
+
+    // Get SEK/EUR exchange rate
+    try {
+      const sekExchangeResponse = await fetch('https://api.exchangerate-api.com/v4/latest/SEK');
+      
+      if (sekExchangeResponse.ok) {
+        const sekExchangeData: ExchangeRateResponse = await sekExchangeResponse.json();
+        
+        if (sekExchangeData.rates && sekExchangeData.rates.EUR) {
+          sekToEurRate = sekExchangeData.rates.EUR;
+          console.log('Updated SEK/EUR rate:', sekToEurRate);
+          
+          // Update exchange rate in database
+          await supabase
+            .from('exchange_rates')
+            .upsert({
+              from_currency: 'SEK',
+              to_currency: 'EUR',
+              rate: sekToEurRate,
+              last_updated: new Date().toISOString()
+            });
+        }
+      }
+    } catch (error) {
+      console.log('Failed to fetch SEK/EUR rate, using fallback:', error);
     }
 
     const results = [];
@@ -212,28 +251,51 @@ Deno.serve(async (req) => {
             }
 
             const meta = chartData.meta;
-            const priceUSD = meta.regularMarketPrice;
+            const originalPrice = meta.regularMarketPrice;
             const previousClose = meta.previousClose || meta.chartPreviousClose;
-            const changeUSD = priceUSD - previousClose;
-            const changePercent = previousClose ? (changeUSD / previousClose) * 100 : 0;
+            const originalChange = originalPrice - previousClose;
+            const changePercent = previousClose ? (originalChange / previousClose) * 100 : 0;
 
-            if (typeof priceUSD !== 'number' || isNaN(priceUSD)) {
+            if (typeof originalPrice !== 'number' || isNaN(originalPrice)) {
               console.warn(`Invalid price data for ${validSymbol}`);
               continue;
             }
 
-            const priceEUR = priceUSD * usdToEurRate;
-            const changeEUR = changeUSD * usdToEurRate;
+            // Determine currency and conversion to EUR
+            const symbolCurrency = SYMBOL_CURRENCY[symbol] || 'USD';
+            let priceEUR: number;
+            let changeEUR: number;
+            let originalCurrency: string;
+
+            if (symbolCurrency === 'EUR') {
+              // Already in EUR, no conversion needed
+              priceEUR = originalPrice;
+              changeEUR = originalChange;
+              originalCurrency = 'EUR';
+              console.log(`${symbol} is already in EUR: €${priceEUR.toFixed(2)}`);
+            } else if (symbolCurrency === 'SEK') {
+              // Convert from SEK to EUR
+              priceEUR = originalPrice * sekToEurRate;
+              changeEUR = originalChange * sekToEurRate;
+              originalCurrency = 'SEK';
+              console.log(`${symbol} converted from SEK to EUR: ${originalPrice.toFixed(2)} SEK → €${priceEUR.toFixed(2)}`);
+            } else {
+              // Default USD to EUR conversion
+              priceEUR = originalPrice * usdToEurRate;
+              changeEUR = originalChange * usdToEurRate;
+              originalCurrency = 'USD';
+            }
 
             // Cache the result using the original symbol as key
             await supabase
               .from('stock_prices')
               .upsert({
                 symbol: symbol, // Store with original symbol for consistency
-                price_usd: priceUSD,
+                price_usd: originalPrice, // Store original price regardless of currency
                 price_eur: priceEUR,
                 change_amount: changeEUR,
                 change_percent: changePercent,
+                original_currency: originalCurrency,
                 last_updated: new Date().toISOString()
               });
 
