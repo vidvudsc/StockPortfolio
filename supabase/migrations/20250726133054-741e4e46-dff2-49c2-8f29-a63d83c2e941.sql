@@ -1,0 +1,1 @@
+DELETE FROM stock_prices WHERE symbol = 'NCC-B';
