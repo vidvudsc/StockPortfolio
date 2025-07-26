@@ -107,21 +107,26 @@ Deno.serve(async (req) => {
     }
 
     const results = [];
+    const processedSymbols = new Set();
 
-    // Fetch stock prices for each symbol
-    for (const symbol of symbols) {
+    // Fetch stock prices for each symbol (avoid duplicates)
+    for (const symbol of [...new Set(symbols.map(s => s.toUpperCase()))]) {
+      if (processedSymbols.has(symbol)) continue;
+      processedSymbols.add(symbol);
+      
       try {
         // Check cache first (extended to 15 minutes for efficiency)
         const { data: cachedPrice } = await supabase
           .from('stock_prices')
           .select('*')
-          .eq('symbol', symbol.toUpperCase())
+          .eq('symbol', symbol)
           .gte('last_updated', new Date(Date.now() - 15 * 60 * 1000).toISOString())
           .single();
 
         if (cachedPrice) {
+          console.log(`Using cached price for ${symbol}`);
           results.push({
-            symbol: symbol.toUpperCase(),
+            symbol: symbol,
             price: cachedPrice.price_eur,
             change: cachedPrice.change_amount,
             changePercent: cachedPrice.change_percent,
@@ -129,6 +134,8 @@ Deno.serve(async (req) => {
           });
           continue;
         }
+
+        console.log(`Fetching fresh data for ${symbol}`);
 
         // Fetch from Alpha Vantage
         const response = await fetch(
@@ -141,6 +148,13 @@ Deno.serve(async (req) => {
         }
 
         const data: AlphaVantageResponse = await response.json();
+        
+        // Check for rate limit response
+        if (data.Note && data.Note.includes('rate limit')) {
+          console.warn('Alpha Vantage rate limit reached, using cached data only');
+          break; // Stop fetching new data when rate limited
+        }
+        
         const quote = data['Global Quote'];
 
         if (!quote || !quote['05. price']) {
@@ -159,7 +173,7 @@ Deno.serve(async (req) => {
         await supabase
           .from('stock_prices')
           .upsert({
-            symbol: symbol.toUpperCase(),
+            symbol: symbol,
             price_usd: priceUSD,
             price_eur: priceEUR,
             change_amount: changeEUR,
@@ -168,15 +182,17 @@ Deno.serve(async (req) => {
           });
 
         results.push({
-          symbol: symbol.toUpperCase(),
+          symbol: symbol,
           price: priceEUR,
           change: changeEUR,
           changePercent: changePercent,
           lastUpdated: new Date().toISOString()
         });
 
+        console.log(`Successfully fetched and cached ${symbol}: €${priceEUR.toFixed(2)}`);
+
         // Add delay between requests to respect rate limits (increased for better compliance)
-        if (symbols.indexOf(symbol) < symbols.length - 1) {
+        if (symbols.indexOf(symbol.toLowerCase()) < symbols.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay for better rate limit compliance
         }
 
@@ -184,6 +200,8 @@ Deno.serve(async (req) => {
         console.error(`Error fetching data for ${symbol}:`, error);
       }
     }
+
+    console.log(`Returning ${results.length} price results out of ${symbols.length} requested symbols`);
 
     return new Response(
       JSON.stringify({ 
