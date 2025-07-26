@@ -111,12 +111,12 @@ Deno.serve(async (req) => {
     // Fetch stock prices for each symbol
     for (const symbol of symbols) {
       try {
-        // Check cache first (5 minutes)
+        // Check cache first (extended to 15 minutes for efficiency)
         const { data: cachedPrice } = await supabase
           .from('stock_prices')
           .select('*')
           .eq('symbol', symbol.toUpperCase())
-          .gte('last_updated', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+          .gte('last_updated', new Date(Date.now() - 15 * 60 * 1000).toISOString())
           .single();
 
         if (cachedPrice) {
@@ -136,15 +136,15 @@ Deno.serve(async (req) => {
         );
 
         if (!response.ok) {
-          console.error(`Failed to fetch data for ${symbol}`);
-          continue;
+          console.error(`Alpha Vantage API error: ${response.status} for ${symbol}`);
+          continue; // Skip this symbol and continue with others
         }
 
         const data: AlphaVantageResponse = await response.json();
         const quote = data['Global Quote'];
 
         if (!quote || !quote['05. price']) {
-          console.error(`No quote data for ${symbol}`);
+          console.warn(`No quote data for ${symbol} - may be due to API limits or invalid symbol`);
           continue;
         }
 
@@ -175,8 +175,10 @@ Deno.serve(async (req) => {
           lastUpdated: new Date().toISOString()
         });
 
-        // Rate limiting: wait 200ms between requests (free tier allows 25/day, 5/minute)
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Add delay between requests to respect rate limits (increased for better compliance)
+        if (symbols.indexOf(symbol) < symbols.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay for better rate limit compliance
+        }
 
       } catch (error) {
         console.error(`Error fetching data for ${symbol}:`, error);

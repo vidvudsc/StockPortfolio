@@ -42,8 +42,13 @@ export const useSupabaseStockPrices = () => {
       setError(null);
     } catch (err) {
       console.error('Error fetching stock prices:', err);
-      setError('Failed to fetch stock prices');
-      toast.error('Failed to fetch current stock prices');
+      
+      // Don't show error toast for rate limit issues - they're expected
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      if (!errorMessage.includes('rate limit')) {
+        setError('Failed to fetch stock prices');
+        console.warn('Stock price fetch failed, using cached data if available');
+      }
     } finally {
       setLoading(false);
     }
@@ -53,14 +58,15 @@ export const useSupabaseStockPrices = () => {
     return prices[symbol.toUpperCase()] || null;
   };
 
-  // Auto-refresh prices every 10 minutes
+  // Auto-refresh prices every 15 minutes for efficiency
   useEffect(() => {
     const interval = setInterval(() => {
       const symbols = Object.keys(prices);
       if (symbols.length > 0) {
+        console.log('Auto-refreshing stock prices for', symbols.length, 'symbols');
         fetchStockPrices(symbols);
       }
-    }, 10 * 60 * 1000); // 10 minutes
+    }, 15 * 60 * 1000); // 15 minutes
 
     return () => clearInterval(interval);
   }, [prices]);

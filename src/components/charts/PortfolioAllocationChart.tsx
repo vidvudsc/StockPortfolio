@@ -63,7 +63,13 @@ const PortfolioAllocationChart = ({ data }: PortfolioAllocationChartProps) => {
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => [`€${value.toFixed(2)}`, 'Value']}
+                formatter={(value: number, name: string, props: any) => [
+                  `€${value.toFixed(2)}`, 
+                  `${props.payload.name} Value`
+                ]}
+                labelFormatter={(label: string, payload: any) => 
+                  payload && payload[0] ? payload[0].payload.name : label
+                }
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',

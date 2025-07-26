@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Trade } from '@/types/portfolio';
-import { useStockPrices } from '@/hooks/useStockPrices';
+import { useSupabaseStockPrices } from '@/hooks/useSupabaseStockPrices';
 import { TrendingUp, TrendingDown, Search } from 'lucide-react';
 
 interface TradesListProps {
@@ -15,7 +15,7 @@ interface TradesListProps {
 const TradesList = ({ trades, title = "All Trades" }: TradesListProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBuyer, setSelectedBuyer] = useState<string>('all');
-  const { getPrice } = useStockPrices();
+  const { getPrice } = useSupabaseStockPrices();
 
   const uniqueBuyers = Array.from(new Set(trades.map(trade => trade.buyer)));
 
