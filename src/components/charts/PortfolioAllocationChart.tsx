@@ -65,16 +65,20 @@ const PortfolioAllocationChart = ({ data }: PortfolioAllocationChartProps) => {
               <Tooltip
                 formatter={(value: number, name: string, props: any) => [
                   `€${value.toFixed(2)}`, 
-                  `${props.payload.name} Value`
+                  props.payload.name
                 ]}
-                labelFormatter={(label: string, payload: any) => 
-                  payload && payload[0] ? payload[0].payload.name : label
-                }
+                labelFormatter={(label: string, payload: any) => {
+                  if (payload && payload[0] && payload[0].payload) {
+                    return payload[0].payload.name;
+                  }
+                  return label;
+                }}
                 labelStyle={{ color: 'hsl(var(--foreground))' }}
                 contentStyle={{
                   backgroundColor: 'hsl(var(--card))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
+                  color: 'hsl(var(--foreground))'
                 }}
               />
               <Legend

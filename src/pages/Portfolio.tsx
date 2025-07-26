@@ -4,7 +4,7 @@ import Header from '@/components/Header';
 import TradesList from '@/components/TradesList';
 import AddTradeModal from '@/components/AddTradeModal';
 import PortfolioAllocationChart from '@/components/charts/PortfolioAllocationChart';
-import GainLossChart from '@/components/charts/GainLossChart';
+import InvestedVsCurrentChart from '@/components/charts/InvestedVsCurrentChart';
 import HoldingsPerformanceChart from '@/components/charts/HoldingsPerformanceChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -209,11 +209,11 @@ const Portfolio = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <PortfolioAllocationChart data={chartData.allocation} />
-          <HoldingsPerformanceChart data={chartData.performance} />
+          <InvestedVsCurrentChart data={{ totalInvested: portfolioData.totalInvested, totalValue: portfolioData.totalValue }} />
         </div>
         
         <div className="mb-8">
-          <GainLossChart data={chartData.gainLoss} />
+          <HoldingsPerformanceChart data={chartData.performance} />
         </div>
 
         {/* Holdings Breakdown */}

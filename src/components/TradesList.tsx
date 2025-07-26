@@ -88,7 +88,7 @@ const TradesList = ({ trades, title = "All Trades" }: TradesListProps) => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Date</p>
                     <p className="font-medium">{new Date(trade.date).toLocaleDateString()}</p>
@@ -103,14 +103,14 @@ const TradesList = ({ trades, title = "All Trades" }: TradesListProps) => {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Current Price</p>
-                    <p className="font-medium">
-                      €{currentPrice?.price.toFixed(2) || 'N/A'}
+                    <div className="font-medium">
+                      <div>€{currentPrice?.price.toFixed(2) || 'N/A'}</div>
                       {currentPrice && (
-                        <span className={`ml-1 text-xs ${currentPrice.changePercent >= 0 ? 'text-success' : 'text-destructive'}`}>
+                        <div className={`text-xs ${currentPrice.changePercent >= 0 ? 'text-success' : 'text-destructive'} break-words`}>
                           ({currentPrice.changePercent >= 0 ? '+' : ''}{currentPrice.changePercent.toFixed(2)}%)
-                        </span>
+                        </div>
                       )}
-                    </p>
+                    </div>
                   </div>
                 </div>
               </div>
