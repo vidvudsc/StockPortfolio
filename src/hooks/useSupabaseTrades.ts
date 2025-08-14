@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Trade } from '@/types/portfolio';
 import { toast } from 'sonner';
 
-// Database trade type (with snake_case)
+// Database trade type (matches current database schema)
 interface DatabaseTrade {
   id: number;
   date: string;
@@ -13,7 +13,6 @@ interface DatabaseTrade {
   quantity: number;
   price: number;
   total: number;
-  true_total: number;
   buyer: string;
   created_at?: string;
   updated_at?: string;
@@ -29,7 +28,6 @@ const transformDbToTrade = (dbTrade: DatabaseTrade): Trade => ({
   quantity: dbTrade.quantity,
   price: dbTrade.price,
   total: dbTrade.total,
-  trueTotal: dbTrade.true_total,
   buyer: dbTrade.buyer,
 });
 
@@ -42,7 +40,6 @@ const transformTradeToDb = (trade: Omit<Trade, 'id'>): Omit<DatabaseTrade, 'id' 
   quantity: trade.quantity,
   price: trade.price,
   total: trade.total,
-  true_total: trade.trueTotal,
   buyer: trade.buyer,
 });
 
@@ -51,7 +48,6 @@ export const useSupabaseTrades = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load trades from Supabase
   const loadTrades = async () => {
     try {
       setLoading(true);
@@ -60,13 +56,9 @@ export const useSupabaseTrades = () => {
         .select('*')
         .order('date', { ascending: false });
 
-      if (fetchError) {
-        throw fetchError;
-      }
+      if (fetchError) throw fetchError;
 
-      // Transform database format to Trade format
       const transformedTrades = (data || []).map(transformDbToTrade);
-
       setTrades(transformedTrades);
       setError(null);
     } catch (err) {
@@ -78,7 +70,6 @@ export const useSupabaseTrades = () => {
     }
   };
 
-  // Add a new trade
   const addTrade = async (newTrade: Omit<Trade, 'id'>) => {
     try {
       const dbTrade = transformTradeToDb(newTrade);
@@ -88,9 +79,7 @@ export const useSupabaseTrades = () => {
         .select()
         .single();
 
-      if (insertError) {
-        throw insertError;
-      }
+      if (insertError) throw insertError;
 
       const transformedTrade = transformDbToTrade(data);
       setTrades(prev => [transformedTrade, ...prev]);
@@ -103,10 +92,8 @@ export const useSupabaseTrades = () => {
     }
   };
 
-  // Update an existing trade
   const updateTrade = async (id: number, updatedTrade: Partial<Trade>) => {
     try {
-      // Transform partial trade to database format
       const dbUpdates: any = {};
       if (updatedTrade.date !== undefined) dbUpdates.date = updatedTrade.date;
       if (updatedTrade.symbol !== undefined) dbUpdates.symbol = updatedTrade.symbol;
@@ -115,7 +102,6 @@ export const useSupabaseTrades = () => {
       if (updatedTrade.quantity !== undefined) dbUpdates.quantity = updatedTrade.quantity;
       if (updatedTrade.price !== undefined) dbUpdates.price = updatedTrade.price;
       if (updatedTrade.total !== undefined) dbUpdates.total = updatedTrade.total;
-      if (updatedTrade.trueTotal !== undefined) dbUpdates.true_total = updatedTrade.trueTotal;
       if (updatedTrade.buyer !== undefined) dbUpdates.buyer = updatedTrade.buyer;
 
       const { data, error: updateError } = await supabase
@@ -125,14 +111,10 @@ export const useSupabaseTrades = () => {
         .select()
         .single();
 
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
       const transformedTrade = transformDbToTrade(data);
-      setTrades(prev => prev.map(trade => 
-        trade.id === id ? transformedTrade : trade
-      ));
+      setTrades(prev => prev.map(trade => trade.id === id ? transformedTrade : trade));
       toast.success('Trade updated successfully');
     } catch (err) {
       console.error('Error updating trade:', err);
@@ -141,7 +123,6 @@ export const useSupabaseTrades = () => {
     }
   };
 
-  // Delete a trade
   const deleteTrade = async (id: number) => {
     try {
       const { error: deleteError } = await supabase
@@ -149,9 +130,7 @@ export const useSupabaseTrades = () => {
         .delete()
         .eq('id', id);
 
-      if (deleteError) {
-        throw deleteError;
-      }
+      if (deleteError) throw deleteError;
 
       setTrades(prev => prev.filter(trade => trade.id !== id));
       toast.success('Trade deleted successfully');
@@ -162,58 +141,12 @@ export const useSupabaseTrades = () => {
     }
   };
 
-  // Get trades by buyer
   const getTradesByBuyer = (buyer: string) => {
     return trades.filter(trade => trade.buyer.toLowerCase() === buyer.toLowerCase());
   };
 
-  // Migrate localStorage data to Supabase (run once)
-  const migrateFromLocalStorage = async () => {
-    try {
-      const localTrades = localStorage.getItem('family-portfolio-trades');
-      if (!localTrades) return;
-
-      const parsedTrades = JSON.parse(localTrades);
-      if (!Array.isArray(parsedTrades) || parsedTrades.length === 0) return;
-
-      // Check if we already have data in Supabase
-      const { data: existingTrades } = await supabase
-        .from('trades')
-        .select('id')
-        .limit(1);
-
-      if (existingTrades && existingTrades.length > 0) {
-        console.log('Supabase already has trades, skipping migration');
-        return;
-      }
-
-      // Transform and insert all trades
-      const tradesToInsert = parsedTrades.map(({ id, ...trade }) => transformTradeToDb(trade));
-      
-      const { error: insertError } = await supabase
-        .from('trades')
-        .insert(tradesToInsert);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      console.log(`Successfully migrated ${tradesToInsert.length} trades to Supabase`);
-      toast.success(`Migrated ${tradesToInsert.length} trades to database`);
-      
-      // Clear localStorage after successful migration
-      localStorage.removeItem('family-portfolio-trades');
-    } catch (err) {
-      console.error('Error migrating trades:', err);
-      toast.error('Failed to migrate trades to database');
-    }
-  };
-
   useEffect(() => {
-    // Run migration first, then load trades
-    migrateFromLocalStorage().then(() => {
-      loadTrades();
-    });
+    loadTrades();
   }, []);
 
   return {
@@ -224,6 +157,5 @@ export const useSupabaseTrades = () => {
     updateTrade,
     deleteTrade,
     getTradesByBuyer,
-    refreshTrades: loadTrades,
   };
 };

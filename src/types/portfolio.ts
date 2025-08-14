@@ -5,9 +5,8 @@ export interface Trade {
   asset: string;
   action: 'Buy' | 'Sell';
   quantity: number;
-  price: number;
-  total: number;
-  trueTotal: number;
+  price: number; // Always in EUR
+  total: number; // Always in EUR
   buyer: string;
 }
 

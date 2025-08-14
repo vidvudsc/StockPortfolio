@@ -23,10 +23,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
     asset: '',
     action: 'Buy' as 'Buy' | 'Sell',
     quantity: '',
-    price: '',
-    currency: 'EUR' as 'EUR' | 'USD' | 'SEK',
-    total: '',
-    trueTotal: '',
+    price: '', // Always EUR
     buyer: '',
   });
 
@@ -44,8 +41,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
 
     const quantity = parseFloat(formData.quantity);
     const price = parseFloat(formData.price);
-    const total = formData.total ? parseFloat(formData.total) : quantity * price;
-    const trueTotal = formData.trueTotal ? parseFloat(formData.trueTotal) : total;
+    const total = quantity * price;
 
     const newTrade: Omit<Trade, 'id'> = {
       date: formData.date,
@@ -53,9 +49,8 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
       asset: formData.asset,
       action: formData.action,
       quantity,
-      price,
-      total,
-      trueTotal,
+      price, // Already in EUR
+      total, // Already in EUR
       buyer: formData.buyer,
     };
 
@@ -63,7 +58,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
     
     toast({
       title: "Trade Added",
-      description: `Successfully added ${formData.action.toLowerCase()} order for ${formData.symbol}`,
+      description: `Successfully added ${formData.action.toLowerCase()} order for ${formData.symbol} (€${total.toFixed(2)})`,
     });
 
     // Reset form
@@ -74,9 +69,6 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
       action: 'Buy',
       quantity: '',
       price: '',
-      currency: 'EUR',
-      total: '',
-      trueTotal: '',
       buyer: '',
     });
     
@@ -167,7 +159,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                 />
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="quantity">Quantity *</Label>
                   <Input
@@ -181,7 +173,7 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="price">Price *</Label>
+                  <Label htmlFor="price">Price per Share (EUR €) *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -191,47 +183,16 @@ const AddTradeModal = ({ onAddTrade }: AddTradeModalProps) => {
                     onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                     required
                   />
-                </div>
-                <div>
-                  <Label htmlFor="currency">Currency</Label>
-                  <Select value={formData.currency} onValueChange={(value: 'EUR' | 'USD' | 'SEK') => setFormData(prev => ({ ...prev, currency: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="EUR">EUR €</SelectItem>
-                      <SelectItem value="USD">USD $</SelectItem>
-                      <SelectItem value="SEK">SEK kr</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Enter the price in EUR as shown in Trade Republic
+                  </p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="total">Total ({formData.currency})</Label>
-                  <Input
-                    id="total"
-                    type="number"
-                    step="any"
-                    placeholder={`${calculateTotal().toFixed(2)}`}
-                    value={formData.total}
-                    onChange={(e) => setFormData(prev => ({ ...prev, total: e.target.value }))}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Auto-calculated: {formData.currency === 'EUR' ? '€' : formData.currency === 'USD' ? '$' : 'kr'}{calculateTotal().toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="trueTotal">True Total ({formData.currency})</Label>
-                  <Input
-                    id="trueTotal"
-                    type="number"
-                    step="any"
-                    placeholder="Including fees"
-                    value={formData.trueTotal}
-                    onChange={(e) => setFormData(prev => ({ ...prev, trueTotal: e.target.value }))}
-                  />
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <div className="text-sm text-muted-foreground">Transaction Summary</div>
+                <div className="text-lg font-semibold">
+                  Total: €{calculateTotal().toFixed(2)}
                 </div>
               </div>
 

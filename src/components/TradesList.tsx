@@ -63,8 +63,8 @@ const TradesList = ({ trades, title = "All Trades" }: TradesListProps) => {
           {sortedTrades.map((trade) => {
             const currentPrice = getPrice(trade.symbol);
             const currentValue = currentPrice ? trade.quantity * currentPrice.price : trade.total;
-            const gainLoss = currentValue - trade.trueTotal;
-            const gainLossPercent = ((currentValue - trade.trueTotal) / trade.trueTotal) * 100;
+            const gainLoss = currentValue - trade.total;
+            const gainLossPercent = ((currentValue - trade.total) / trade.total) * 100;
             const isPositive = gainLoss >= 0;
 
             return (

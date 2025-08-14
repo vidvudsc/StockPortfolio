@@ -38,11 +38,11 @@ const Portfolio = () => {
       trade.buyer.toLowerCase() === owner?.toLowerCase()
     );
 
-    const totalInvested = userTrades.reduce((sum, trade) => sum + trade.trueTotal, 0);
+    const totalInvested = userTrades.reduce((sum, trade) => sum + trade.total, 0);
     
     const totalValue = userTrades.reduce((sum, trade) => {
       const currentPrice = getPrice(trade.symbol);
-      return sum + (currentPrice ? trade.quantity * currentPrice.price : trade.trueTotal);
+      return sum + (currentPrice ? trade.quantity * currentPrice.price : trade.total);
     }, 0);
 
     const gainLoss = totalValue - totalInvested;
@@ -66,7 +66,7 @@ const Portfolio = () => {
       
       const holding = holdings.get(key);
       holding.totalQuantity += trade.quantity;
-      holding.totalInvested += trade.trueTotal;
+      holding.totalInvested += trade.total;
       
       const currentPrice = getPrice(trade.symbol);
       if (currentPrice) {
@@ -105,7 +105,7 @@ const Portfolio = () => {
     let cumulativeValue = 0;
     
     const gainLoss = sortedTrades.map(trade => {
-      cumulativeInvested += trade.trueTotal;
+      cumulativeInvested += trade.total;
       const currentPrice = getPrice(trade.symbol);
       if (currentPrice) {
         cumulativeValue = portfolioData.holdings.reduce((sum, holding) => sum + holding.currentValue, 0);

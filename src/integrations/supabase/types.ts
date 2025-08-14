@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -18,22 +18,28 @@ export type Database = {
         Row: {
           from_currency: string
           id: number
+          is_active: boolean | null
           last_updated: string
           rate: number
+          source: string | null
           to_currency: string
         }
         Insert: {
           from_currency: string
           id?: number
+          is_active?: boolean | null
           last_updated?: string
           rate: number
+          source?: string | null
           to_currency: string
         }
         Update: {
           from_currency?: string
           id?: number
+          is_active?: boolean | null
           last_updated?: string
           rate?: number
+          source?: string | null
           to_currency?: string
         }
         Relationships: []
@@ -44,6 +50,7 @@ export type Database = {
           change_percent: number | null
           id: number
           last_updated: string
+          original_currency: string
           price_eur: number
           price_usd: number
           symbol: string
@@ -53,6 +60,7 @@ export type Database = {
           change_percent?: number | null
           id?: number
           last_updated?: string
+          original_currency?: string
           price_eur: number
           price_usd: number
           symbol: string
@@ -62,6 +70,7 @@ export type Database = {
           change_percent?: number | null
           id?: number
           last_updated?: string
+          original_currency?: string
           price_eur?: number
           price_usd?: number
           symbol?: string
@@ -80,7 +89,6 @@ export type Database = {
           quantity: number
           symbol: string
           total: number
-          true_total: number
           updated_at: string
         }
         Insert: {
@@ -94,7 +102,6 @@ export type Database = {
           quantity: number
           symbol: string
           total: number
-          true_total: number
           updated_at?: string
         }
         Update: {
@@ -108,7 +115,6 @@ export type Database = {
           quantity?: number
           symbol?: string
           total?: number
-          true_total?: number
           updated_at?: string
         }
         Relationships: []

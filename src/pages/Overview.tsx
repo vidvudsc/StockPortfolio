@@ -39,11 +39,11 @@ const Overview = () => {
 
     // Calculate portfolio values
     const portfolios = Array.from(portfolioMap.values()).map(portfolio => {
-      const totalInvested = portfolio.trades.reduce((sum, trade) => sum + trade.trueTotal, 0);
+      const totalInvested = portfolio.trades.reduce((sum, trade) => sum + trade.total, 0);
       
       const totalValue = portfolio.trades.reduce((sum, trade) => {
         const currentPrice = getPrice(trade.symbol);
-        return sum + (currentPrice ? trade.quantity * currentPrice.price : trade.trueTotal);
+        return sum + (currentPrice ? trade.quantity * currentPrice.price : trade.total);
       }, 0);
 
       const gainLoss = totalValue - totalInvested;
