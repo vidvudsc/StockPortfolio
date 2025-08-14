@@ -45,11 +45,12 @@ const HoldingsPerformanceChart = ({ data }: HoldingsPerformanceChartProps) => {
               <Tooltip
                 formatter={(value: number) => [`${value.toFixed(2)}%`, 'Performance']}
                 labelFormatter={(label) => `${label}`}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                labelStyle={{ color: '#ffffff' }}
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
+                  color: '#ffffff'
                 }}
               />
               <Bar 

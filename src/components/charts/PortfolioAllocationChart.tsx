@@ -73,12 +73,12 @@ const PortfolioAllocationChart = ({ data }: PortfolioAllocationChartProps) => {
                   }
                   return label;
                 }}
-                labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                labelStyle={{ color: '#ffffff' }}
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--popover))',
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
-                  color: 'hsl(var(--popover-foreground))'
+                  color: '#ffffff'
                 }}
               />
               <Legend
