@@ -64,16 +64,15 @@ const PortfolioAllocationChart = ({ data }: PortfolioAllocationChartProps) => {
               </Pie>
               <Tooltip
                 formatter={(value: number, name: string, props: any) => [
-                  `€${value.toFixed(2)}`, 
-                  props.payload.name
+                  <span style={{ color: '#ffffff' }}>{`€${value.toFixed(2)}`}</span>, 
+                  <span style={{ color: '#ffffff' }}>{props.payload.name}</span>
                 ]}
                 labelFormatter={(label: string, payload: any) => {
                   if (payload && payload[0] && payload[0].payload) {
-                    return payload[0].payload.name;
+                    return <span style={{ color: '#ffffff' }}>{payload[0].payload.name}</span>;
                   }
-                  return label;
+                  return <span style={{ color: '#ffffff' }}>{label}</span>;
                 }}
-                labelStyle={{ color: '#ffffff' }}
                 contentStyle={{
                   backgroundColor: 'rgba(0, 0, 0, 0.8)',
                   border: '1px solid hsl(var(--border))',

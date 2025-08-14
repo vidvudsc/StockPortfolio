@@ -43,9 +43,11 @@ const HoldingsPerformanceChart = ({ data }: HoldingsPerformanceChartProps) => {
                 tickFormatter={(value) => `${value.toFixed(1)}%`}
               />
               <Tooltip
-                formatter={(value: number) => [`${value.toFixed(2)}%`, 'Performance']}
-                labelFormatter={(label) => `${label}`}
-                labelStyle={{ color: '#ffffff' }}
+                formatter={(value: number) => [
+                  <span style={{ color: '#ffffff' }}>{`${value.toFixed(2)}%`}</span>, 
+                  <span style={{ color: '#ffffff' }}>Performance</span>
+                ]}
+                labelFormatter={(label) => <span style={{ color: '#ffffff' }}>{label}</span>}
                 contentStyle={{
                   backgroundColor: 'rgba(0, 0, 0, 0.8)',
                   border: '1px solid hsl(var(--border))',
