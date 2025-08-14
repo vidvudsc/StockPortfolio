@@ -48,11 +48,12 @@ const InvestedVsCurrentChart = ({ data }: InvestedVsCurrentChartProps) => {
                   `€${value.toFixed(2)}`,
                   name === 'invested' ? 'Total Invested' : 'Current Value'
                 ]}
-                labelStyle={{ color: 'hsl(var(--foreground))' }}
+                labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
                 contentStyle={{
-                  backgroundColor: 'hsl(var(--card))',
+                  backgroundColor: 'hsl(var(--popover))',
                   border: '1px solid hsl(var(--border))',
                   borderRadius: '6px',
+                  color: 'hsl(var(--popover-foreground))'
                 }}
               />
               <Legend
