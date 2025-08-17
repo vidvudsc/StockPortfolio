@@ -44,6 +44,33 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          buyer_name: string | null
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          buyer_name?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          buyer_name?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       stock_prices: {
         Row: {
           change_amount: number | null
@@ -90,6 +117,7 @@ export type Database = {
           symbol: string
           total: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           action: string
@@ -103,6 +131,7 @@ export type Database = {
           symbol: string
           total: number
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           action?: string
@@ -116,6 +145,7 @@ export type Database = {
           symbol?: string
           total?: number
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
