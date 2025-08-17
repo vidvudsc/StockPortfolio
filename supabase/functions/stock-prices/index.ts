@@ -12,6 +12,15 @@ interface YahooFinanceQuote {
   symbol: string;
 }
 
+interface YahooFinanceMeta {
+  regularMarketPrice: number;
+  previousClose: number;
+  chartPreviousClose: number;
+  currency: string;
+  exchangeName: string;
+  symbol: string;
+}
+
 // Symbol mapping for European ETFs and corrected tickers
 const SYMBOL_MAPPING: Record<string, string[]> = {
   'CSPX': ['CSPX.L'], // Core S&P 500 USD (Acc) - London
@@ -23,17 +32,91 @@ const SYMBOL_MAPPING: Record<string, string[]> = {
   'SXRV': ['SXRV.DE'], // NASDAQ 100 USD (Acc) - Frankfurt (EUR)
 };
 
-// Currency mapping for different symbols
-const SYMBOL_CURRENCY: Record<string, string> = {
-  'NCC-B': 'SEK', // Swedish Krona
-  'LCUJ': 'EUR',  // Already in EUR
-  'SXR8': 'EUR',  // Already in EUR
-  'XAD5': 'EUR',  // Already in EUR
-  'SXRV': 'EUR',  // Already in EUR
-};
-
 // Exchange suffixes to try for unrecognized symbols
 const EXCHANGE_SUFFIXES = ['.L', '.PA', '.AS', '.ST', '.MI', '.DE'];
+
+// Cache for exchange rates to avoid repeated API calls
+const exchangeRateCache: Record<string, { rate: number; timestamp: number }> = {};
+
+async function getExchangeRateToEUR(fromCurrency: string, supabase: any): Promise<number> {
+  if (fromCurrency === 'EUR') {
+    return 1; // No conversion needed
+  }
+  
+  const cacheKey = `${fromCurrency}_EUR`;
+  const now = Date.now();
+  
+  // Check cache first (valid for 30 minutes)
+  if (exchangeRateCache[cacheKey] && (now - exchangeRateCache[cacheKey].timestamp) < 30 * 60 * 1000) {
+    return exchangeRateCache[cacheKey].rate;
+  }
+  
+  try {
+    // Try to get rate from database first
+    const { data: dbRate } = await supabase
+      .from('exchange_rates')
+      .select('rate')
+      .eq('from_currency', fromCurrency)
+      .eq('to_currency', 'EUR')
+      .eq('is_active', true)
+      .gte('last_updated', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+      .single();
+    
+    if (dbRate) {
+      const rate = parseFloat(dbRate.rate);
+      exchangeRateCache[cacheKey] = { rate, timestamp: now };
+      console.log(`Using cached DB rate for ${fromCurrency}/EUR: ${rate}`);
+      return rate;
+    }
+    
+    // Fetch fresh rate from API
+    const response = await fetch(`https://api.exchangerate-api.com/v4/latest/${fromCurrency}`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      
+      if (data.rates && data.rates.EUR) {
+        const rate = data.rates.EUR;
+        
+        // Cache in memory and database
+        exchangeRateCache[cacheKey] = { rate, timestamp: now };
+        
+        await supabase
+          .from('exchange_rates')
+          .upsert({
+            from_currency: fromCurrency,
+            to_currency: 'EUR',
+            rate: rate,
+            source: 'exchangerate-api.com',
+            is_active: true,
+            last_updated: new Date().toISOString()
+          });
+        
+        console.log(`Fetched fresh ${fromCurrency}/EUR rate: ${rate}`);
+        return rate;
+      }
+    }
+  } catch (error) {
+    console.log(`Failed to fetch ${fromCurrency}/EUR rate:`, error);
+  }
+  
+  // Return reasonable fallback rates for common currencies
+  const fallbackRates: Record<string, number> = {
+    'USD': 0.92,
+    'SEK': 0.094,
+    'GBP': 1.17,
+    'JPY': 0.0067,
+    'CHF': 1.05,
+    'NOK': 0.089,
+    'DKK': 0.134,
+    'CAD': 0.67,
+    'AUD': 0.63
+  };
+  
+  const fallbackRate = fallbackRates[fromCurrency] || 0.92; // Default to USD rate
+  console.log(`Using fallback rate for ${fromCurrency}/EUR: ${fallbackRate}`);
+  return fallbackRate;
+}
 
 async function findValidSymbol(originalSymbol: string): Promise<string | null> {
   // First try mapped symbols if available
@@ -125,61 +208,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get current USD/EUR and SEK/EUR exchange rates
-    let usdToEurRate = 0.92; // Default fallback rate
-    let sekToEurRate = 0.094; // Default fallback rate
-    
-    try {
-      const exchangeResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
-      
-      if (exchangeResponse.ok) {
-        const exchangeData: ExchangeRateResponse = await exchangeResponse.json();
-        
-        if (exchangeData.rates && exchangeData.rates.EUR) {
-          usdToEurRate = exchangeData.rates.EUR;
-          console.log('Updated USD/EUR rate:', usdToEurRate);
-          
-          // Update exchange rate in database
-          await supabase
-            .from('exchange_rates')
-            .upsert({
-              from_currency: 'USD',
-              to_currency: 'EUR',
-              rate: usdToEurRate,
-              last_updated: new Date().toISOString()
-            });
-        }
-      }
-    } catch (error) {
-      console.log('Failed to fetch USD/EUR rate, using fallback:', error);
-    }
-
-    // Get SEK/EUR exchange rate
-    try {
-      const sekExchangeResponse = await fetch('https://api.exchangerate-api.com/v4/latest/SEK');
-      
-      if (sekExchangeResponse.ok) {
-        const sekExchangeData: ExchangeRateResponse = await sekExchangeResponse.json();
-        
-        if (sekExchangeData.rates && sekExchangeData.rates.EUR) {
-          sekToEurRate = sekExchangeData.rates.EUR;
-          console.log('Updated SEK/EUR rate:', sekToEurRate);
-          
-          // Update exchange rate in database
-          await supabase
-            .from('exchange_rates')
-            .upsert({
-              from_currency: 'SEK',
-              to_currency: 'EUR',
-              rate: sekToEurRate,
-              last_updated: new Date().toISOString()
-            });
-        }
-      }
-    } catch (error) {
-      console.log('Failed to fetch SEK/EUR rate, using fallback:', error);
-    }
-
     const results = [];
     const uniqueSymbols = [...new Set(symbols.map(s => s.toUpperCase()))];
     
@@ -261,29 +289,27 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            // Determine currency and conversion to EUR
-            const symbolCurrency = SYMBOL_CURRENCY[symbol] || 'USD';
-            let priceEUR: number;
-            let changeEUR: number;
-            let originalCurrency: string;
+            // Detect currency from Yahoo Finance API response
+            const detectedCurrency = meta.currency || 'USD'; // Fallback to USD if currency not provided
+            console.log(`Detected currency for ${symbol} (${validSymbol}): ${detectedCurrency}`);
+            
+            // Get exchange rate to EUR
+            const exchangeRate = await getExchangeRateToEUR(detectedCurrency, supabase);
+            
+            // Convert to EUR
+            const priceEUR = originalPrice * exchangeRate;
+            const changeEUR = originalChange * exchangeRate;
+            
+            console.log(`${symbol} converted from ${detectedCurrency} to EUR: ${originalPrice.toFixed(2)} ${detectedCurrency} → €${priceEUR.toFixed(2)} (rate: ${exchangeRate})`);
 
-            if (symbolCurrency === 'EUR') {
-              // Already in EUR, no conversion needed
-              priceEUR = originalPrice;
-              changeEUR = originalChange;
-              originalCurrency = 'EUR';
-              console.log(`${symbol} is already in EUR: €${priceEUR.toFixed(2)}`);
-            } else if (symbolCurrency === 'SEK') {
-              // Convert from SEK to EUR
-              priceEUR = originalPrice * sekToEurRate;
-              changeEUR = originalChange * sekToEurRate;
-              originalCurrency = 'SEK';
-              console.log(`${symbol} converted from SEK to EUR: ${originalPrice.toFixed(2)} SEK → €${priceEUR.toFixed(2)}`);
+            // Calculate USD price for legacy compatibility
+            let priceUSD: number;
+            if (detectedCurrency === 'USD') {
+              priceUSD = originalPrice;
             } else {
-              // Default USD to EUR conversion
-              priceEUR = originalPrice * usdToEurRate;
-              changeEUR = originalChange * usdToEurRate;
-              originalCurrency = 'USD';
+              // Convert to USD via EUR (since we have EUR rates)
+              const usdToEurRate = await getExchangeRateToEUR('USD', supabase);
+              priceUSD = priceEUR / usdToEurRate;
             }
 
             // Cache the result using the original symbol as key
@@ -291,11 +317,11 @@ Deno.serve(async (req) => {
               .from('stock_prices')
               .upsert({
                 symbol: symbol, // Store with original symbol for consistency
-                price_usd: originalPrice, // Store original price regardless of currency
+                price_usd: priceUSD,
                 price_eur: priceEUR,
                 change_amount: changeEUR,
                 change_percent: changePercent,
-                original_currency: originalCurrency,
+                original_currency: detectedCurrency,
                 last_updated: new Date().toISOString()
               });
 
@@ -322,7 +348,6 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         prices: results,
-        exchangeRate: usdToEurRate,
         currency: 'EUR'
       }),
       { 
